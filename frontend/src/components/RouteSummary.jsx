@@ -9,6 +9,7 @@ const RouteSummary = ({ data }) => {
         : `${minutesRestantes} min`;
 
     const bornes = data["5_bornes_a_proximite"] || [];
+    const borneRecommandee = data.borne_recommandee;
 
     return (
         <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200 mt-6 flex flex-col gap-4">
@@ -27,29 +28,68 @@ const RouteSummary = ({ data }) => {
                     <span className="font-semibold text-slate-900">{tempsAffichage}</span>
                 </div>
 
-                <div className="flex justify-between items-center text-slate-700">
-                    <span className="flex items-center gap-2">⚡ Bornes trouvées</span>
+                {/* --- DONNÉES D'AUTONOMIE V3 --- */}
+                {data.autonomie_reelle_km && (
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 mt-2 flex flex-col gap-2">
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-slate-600">🔋 Autonomie réelle :</span>
+                            <span className="font-bold text-indigo-600">{data.autonomie_reelle_km} km</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                            <span className="text-slate-600">🛡️ Seuil de sécurité (30%) :</span>
+                            <span className="font-bold text-amber-600">{data.seuil_alerte_recharge_km} km</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- ARRÊT RECOMMANDÉ PAR L'IA --- */}
+                {data.necessite_recharge && borneRecommandee ? (
+                    <div className="mt-2 border-2 border-red-300 bg-red-50 p-4 rounded-lg shadow-sm">
+                        <div className="flex items-center gap-2 text-red-700 font-bold mb-2">
+                            <span>⚠️ ARRÊT RECHARGE OBLIGATOIRE</span>
+                        </div>
+                        <p className="text-xs text-red-600 mb-3">
+                            L'IA a calculé que vous passerez sous les 30% de batterie. Voici la meilleure station sur votre route :
+                        </p>
+                        <div className="bg-white p-3 rounded border border-red-200 flex justify-between items-center">
+                            <div>
+                                <strong className="block text-slate-800 text-sm">🎯 {borneRecommandee.nom || "Station Recommandée"}</strong>
+                                <span className="text-xs text-slate-500">{borneRecommandee.typeConnecteur || "Standard"}</span>
+                            </div>
+                            <div className="bg-green-100 text-green-800 font-bold px-3 py-1 rounded text-sm shadow-sm">
+                                {borneRecommandee.puissanceKw ? `${borneRecommandee.puissanceKw} kW` : "N/A"}
+                            </div>
+                        </div>
+                    </div>
+                ) : data.autonomie_reelle_km ? (
+                    <div className="mt-2 p-3 rounded-lg text-sm font-bold text-center bg-green-100 text-green-800 border border-green-200">
+                        ✅ Trajet réalisable sans recharge !
+                    </div>
+                ) : null}
+
+                {/* --- AUTRES BORNES (Rayon global) --- */}
+                <div className="flex justify-between items-center text-slate-700 border-t pt-3 mt-2">
+                    <span className="flex items-center gap-2">⚡ Autres bornes à proximité</span>
                     <span className="font-bold text-blue-600">{data["4_nombre_bornes_trouvees"]}</span>
                 </div>
             </div>
 
-            {/* Liste détaillée des bornes avec un scroll */}
+            {/* Liste des autres bornes */}
             {bornes.length > 0 && (
-                <div className="mt-2">
-                    <h4 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-2">Liste des stations</h4>
-                    <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                        {bornes.map((borne, index) => (
-                            <div key={index} className="bg-slate-50 border border-slate-100 p-3 rounded-lg text-sm flex justify-between items-center hover:bg-slate-100 transition">
+                <div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar mt-1">
+                    {bornes.map((borne, index) => (
+                        // On ne réaffiche pas la borne recommandée dans la liste des "autres"
+                        borne.id !== borneRecommandee?.id && (
+                            <div key={index} className="bg-white border border-slate-200 p-2 rounded-lg text-xs flex justify-between items-center hover:border-blue-300 transition">
                                 <div>
-                                    <strong className="block text-slate-800">{borne.nom || `Station #${index + 1}`}</strong>
-                                    <span className="text-xs text-slate-500">{borne.typeConnecteur || "Connecteur standard"}</span>
+                                    <strong className="block text-slate-700">{borne.nom || `Station #${index + 1}`}</strong>
                                 </div>
-                                <div className="bg-blue-100 text-blue-700 font-bold px-2 py-1 rounded text-xs">
-                                    {borne.puissanceKw ? `${borne.puissanceKw} kW` : "N/A"}
+                                <div className="bg-slate-100 text-slate-600 font-semibold px-2 py-1 rounded">
+                                    {borne.puissanceKw ? `${borne.puissanceKw} kW` : "-"}
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        )
+                    ))}
                 </div>
             )}
         </div>

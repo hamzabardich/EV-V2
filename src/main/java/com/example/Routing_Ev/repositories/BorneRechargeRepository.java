@@ -19,4 +19,13 @@ public interface BorneRechargeRepository extends JpaRepository<BorneRecharge, Lo
             @Param("routeGeoJson") String routeGeoJson,
             @Param("rayonEnMetres") double rayonEnMetres);
 
+
+
+    @Query(value = """
+            SELECT * FROM borne_recharge 
+            ORDER BY ST_Distance(localisation, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)) ASC 
+            LIMIT 1
+            """, nativeQuery = true)
+    BorneRecharge findBorneIdealePourRecharge(@Param("lon") double longitude, @Param("lat") double latitude);
+
 }

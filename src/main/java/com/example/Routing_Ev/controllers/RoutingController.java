@@ -7,6 +7,7 @@ import com.example.Routing_Ev.repositories.BorneRechargeRepository;
 import com.example.Routing_Ev.repositories.TrajetRepository;
 import com.example.Routing_Ev.repositories.VehiculeRepository;
 import com.example.Routing_Ev.services.OsrmService;
+import com.example.Routing_Ev.services.SmartRoutingService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.bind.annotation.*;
@@ -17,24 +18,27 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/routing")
-@CrossOrigin(origins = "*") // Autorise les appels depuis le futur frontend React
+@CrossOrigin(origins = "*")
 public class RoutingController {
 
     private final OsrmService osrmService;
     private final BorneRechargeRepository borneRepository;
     private final TrajetRepository trajetRepository;
     private final VehiculeRepository vehiculeRepository;
+    private final SmartRoutingService smartRoutingService;
     private final ObjectMapper objectMapper;
 
     public RoutingController(
             OsrmService osrmService,
             BorneRechargeRepository borneRepository,
             TrajetRepository trajetRepository,
-            VehiculeRepository vehiculeRepository) {
+            VehiculeRepository vehiculeRepository,
+            SmartRoutingService smartRoutingService) {
         this.osrmService = osrmService;
         this.borneRepository = borneRepository;
         this.trajetRepository = trajetRepository;
         this.vehiculeRepository = vehiculeRepository;
+        this.smartRoutingService = smartRoutingService;
         this.objectMapper = new ObjectMapper();
     }
 
@@ -43,7 +47,10 @@ public class RoutingController {
             @RequestParam double startLon, @RequestParam double startLat,
             @RequestParam double endLon, @RequestParam double endLat,
             @RequestParam(defaultValue = "5000") double rayonMetres,
-            @RequestParam(required = false) Long vehiculeId) throws JsonProcessingException {
+            @RequestParam(required = false) Long vehiculeId,
+            @RequestParam(defaultValue = "false") boolean isClimActive,
+            @RequestParam(defaultValue = "0") double chargeUtileKg
+    ) throws JsonProcessingException {
 
         // 1. Récupération de l'itinéraire OSRM
         OsrmService.OsrmResult osrmResult = osrmService.getRoute(startLon, startLat, endLon, endLat);
@@ -54,14 +61,43 @@ public class RoutingController {
             return erreur;
         }
 
-        // 2. Recherche spatiale des bornes via PostGIS
-        List<BorneRecharge> bornesProches = borneRepository.findBornesAutourDuTrajet(osrmResult.geometry(), rayonMetres);
-
-        // 3. Calculs d'affichage
         double distanceKm = Math.round((osrmResult.distanceMetres() / 1000) * 100.0) / 100.0;
         long dureeMinutes = Math.round(osrmResult.dureeSecondes() / 60.0);
 
-        // 4. Sauvegarde de l'historique en base de données
+        // 2. INTELLIGENCE V3 : Calcul de l'autonomie et du besoin de recharge
+        double autonomieReelle = 0.0;
+        double distanceMaxAvantRecharge = 0.0;
+        boolean besoinRecharge = false;
+
+        if (vehiculeId != null) {
+            Vehicule vehicule = vehiculeRepository.findById(vehiculeId).orElse(null);
+            if (vehicule != null) {
+                autonomieReelle = smartRoutingService.calculerAutonomieReelle(vehicule, isClimActive, chargeUtileKg);
+                distanceMaxAvantRecharge = smartRoutingService.calculerDistanceMaxAvantRecharge(autonomieReelle);
+                besoinRecharge = smartRoutingService.necessiteRecharge(distanceKm, distanceMaxAvantRecharge);
+            }
+        }
+
+        // 3. RECHERCHE SPATIALE DE LA BORNE IDÉALE
+        Map<String, Object> traceCartographique = objectMapper.readValue(osrmResult.geometry(), Map.class);
+        BorneRecharge borneIdeale = null;
+
+        if (besoinRecharge) {
+            // Extraction des coordonnées du trajet OSRM
+            @SuppressWarnings("unchecked")
+            List<List<Double>> coordinates = (List<List<Double>>) traceCartographique.get("coordinates");
+
+            // Trouver les coordonnées GPS exactes de la panne (à 30% de batterie)
+            double[] pointPanne = smartRoutingService.trouverPointRechargeOptimal(coordinates, distanceMaxAvantRecharge);
+
+            // Chercher la borne la plus proche de ce point précis
+            borneIdeale = borneRepository.findBorneIdealePourRecharge(pointPanne[0], pointPanne[1]);
+        }
+
+        // 4. Recherche globale classique (pour l'historique et affichage général)
+        List<BorneRecharge> bornesProches = borneRepository.findBornesAutourDuTrajet(osrmResult.geometry(), rayonMetres);
+
+        // 5. Sauvegarde du trajet
         Trajet trajet = new Trajet();
         trajet.setStartLatitude(startLat);
         trajet.setStartLongitude(startLon);
@@ -77,14 +113,20 @@ public class RoutingController {
 
         Trajet trajetSauvegarde = trajetRepository.save(trajet);
 
-        // 5. Réponse finale JSON
+        // 6. Construction de la réponse JSON finale
         Map<String, Object> response = new HashMap<>();
-        Map<String, Object> traceCartographique = objectMapper.readValue(osrmResult.geometry(), Map.class);
-
         response.put("trajet_id", trajetSauvegarde.getId());
         response.put("1_geometrie_trajet", traceCartographique);
         response.put("2_distance_km", distanceKm);
         response.put("3_duree_minutes", dureeMinutes);
+
+        // Nouvelles clés V3
+        response.put("autonomie_reelle_km", autonomieReelle);
+        response.put("seuil_alerte_recharge_km", distanceMaxAvantRecharge);
+        response.put("necessite_recharge", besoinRecharge);
+        response.put("borne_recommandee", borneIdeale); // L'IA renvoie la meilleure borne !
+
+        // Clés V2
         response.put("4_nombre_bornes_trouvees", bornesProches.size());
         response.put("5_bornes_a_proximite", bornesProches);
 

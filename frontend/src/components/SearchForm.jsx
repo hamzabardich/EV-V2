@@ -6,9 +6,11 @@ const SearchForm = ({ onRouteCalculated }) => {
     const [selectedVehicule, setSelectedVehicule] = useState("");
     const [startPoint, setStartPoint] = useState(null);
     const [endPoint, setEndPoint] = useState(null);
-
-    // Nouvel état pour gérer l'animation de chargement
     const [isLoading, setIsLoading] = useState(false);
+
+    // --- NOUVEAUX ÉTATS V3 ---
+    const [isClimActive, setIsClimActive] = useState(false);
+    const [chargeUtileKg, setChargeUtileKg] = useState(0);
 
     useEffect(() => {
         fetch('http://localhost:8080/api/vehicules')
@@ -19,14 +21,15 @@ const SearchForm = ({ onRouteCalculated }) => {
 
     const handleCalculer = async () => {
         if (!selectedVehicule || !startPoint || !endPoint) {
-            alert("Veuillez remplir tous les champs !");
+            alert("Veuillez remplir tous les champs principaux !");
             return;
         }
 
-        setIsLoading(true); // Début de l'animation
+        setIsLoading(true);
 
         try {
-            const url = `http://localhost:8080/api/routing/trajet?startLon=${startPoint.lon}&startLat=${startPoint.lat}&endLon=${endPoint.lon}&endLat=${endPoint.lat}&vehiculeId=${selectedVehicule}`;
+            // L'URL intègre maintenant isClimActive et chargeUtileKg
+            const url = `http://localhost:8080/api/routing/trajet?startLon=${startPoint.lon}&startLat=${startPoint.lat}&endLon=${endPoint.lon}&endLat=${endPoint.lat}&vehiculeId=${selectedVehicule}&isClimActive=${isClimActive}&chargeUtileKg=${chargeUtileKg}`;
 
             const response = await fetch(url);
             if (!response.ok) throw new Error("Erreur lors du calcul de l'itinéraire");
@@ -38,13 +41,13 @@ const SearchForm = ({ onRouteCalculated }) => {
             console.error("Erreur de routage:", error);
             alert("Impossible de calculer l'itinéraire.");
         } finally {
-            setIsLoading(false); // Fin de l'animation
+            setIsLoading(false);
         }
     };
 
     return (
         <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200 flex flex-col gap-4">
-            <h2 className="text-xl font-bold text-slate-800 border-b pb-2">Paramètres du trajet</h2>
+            <h2 className="text-xl font-bold text-slate-800 border-b pb-2">Planificateur Intelligent (V3)</h2>
 
             <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Véhicule électrique</label>
@@ -75,6 +78,37 @@ const SearchForm = ({ onRouteCalculated }) => {
                 onLocationSelect={(coords) => setEndPoint(coords)}
             />
 
+            {/* --- NOUVEAUX CHAMPS V3 --- */}
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col gap-3">
+                <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Options de conduite</span>
+
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                    <input
+                        type="checkbox"
+                        checked={isClimActive}
+                        onChange={(e) => setIsClimActive(e.target.checked)}
+                        className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                    />
+                    ❄️ Climatisation (-15% d'autonomie)
+                </label>
+
+                <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Poids additionnel (Passagers + Bagages en kg)
+                    </label>
+                    <input
+                        type="number"
+                        min="0"
+                        step="10"
+                        value={chargeUtileKg}
+                        onChange={(e) => setChargeUtileKg(e.target.value)}
+                        placeholder="Ex: 150"
+                        className="w-full border border-slate-300 rounded-lg p-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    />
+                </div>
+            </div>
+            {/* ------------------------- */}
+
             <button
                 onClick={handleCalculer}
                 disabled={isLoading}
@@ -89,7 +123,7 @@ const SearchForm = ({ onRouteCalculated }) => {
                         Calcul en cours...
                     </>
                 ) : (
-                    "Calculer l'itinéraire"
+                    "Calculer le trajet"
                 )}
             </button>
         </div>
