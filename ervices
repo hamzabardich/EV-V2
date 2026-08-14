@@ -1,0 +1,17 @@
+[33mcommit b45e953cf9f3bc735777a05bb4133c7bc3583012[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/osrm-routing[m[33m)[m
+Author: hamzabardich <hamzabardich34@gmail.com>
+Date:   Sun Aug 2 17:25:09 2026 +0200
+
+    api de osmr qui marche bien
+
+[33mcommit 58e6333458b0fc98a65b0ae211c680114e3bdcc0[m[33m ([m[1;31morigin/main[m[33m, [m[1;32mmain[m[33m)[m
+Author: hamzabardich <hamzabardich34@gmail.com>
+Date:   Sun Aug 2 15:58:24 2026 +0200
+
+    chore: sécurisation de la clé API, des identifiants DB et màj du gitignore
+
+[33mcommit 95e4dd0767c805fd4ad0de74e7abe4a682cb06b2[m
+Author: hamzabardich <hamzabardich34@gmail.com>
+Date:   Sun Aug 2 15:22:45 2026 +0200
+
+    premier commit

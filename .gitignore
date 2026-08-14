@@ -1,0 +1,66 @@
+# ==========================================
+# 1. FICHIERS DE COMPILATION (MAVEN)
+# ==========================================
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# ==========================================
+# 2. CONFIGURATIONS DES IDE (Éditeurs)
+# ==========================================
+
+### IntelliJ IDEA (Ton éditeur actuel) ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### STS / Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code / Cursor ###
+.vscode/
+
+# ==========================================
+# 3. FICHIERS DE LOGS
+# ==========================================
+*.log
+*/logs/*
+
+# ==========================================
+# 4. FICHIERS CACHES DU SYSTÈME (OS)
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ==========================================
+# 5. SÉCURITÉ ET VARIABLES D'ENVIRONNEMENT
+# ==========================================
+# (Bloque l'envoi de tes mots de passe et clés API)
+.env
+.env.local
+.env.*.local
+application-secret.properties
