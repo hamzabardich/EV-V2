@@ -29,7 +29,20 @@ const SearchForm = ({ onRouteCalculated }) => {
         try {
             const url = `http://localhost:8080/api/routing/trajet?startLon=${startPoint.lon}&startLat=${startPoint.lat}&endLon=${endPoint.lon}&endLat=${endPoint.lat}&vehiculeId=${selectedVehicule}&isClimActive=${isClimActive}&chargeUtileKg=${chargeUtileKg}`;
 
-            const response = await fetch(url);
+            // On récupère le token s'il existe
+            const token = localStorage.getItem('token');
+
+            // On prépare les en-têtes (Headers) de la requête
+            const headers = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            // On envoie la requête avec le token !
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: headers
+            });
             if (!response.ok) throw new Error("Erreur lors du calcul de l'itinéraire");
 
             const data = await response.json();
