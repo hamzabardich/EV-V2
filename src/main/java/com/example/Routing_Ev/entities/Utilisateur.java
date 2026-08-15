@@ -41,8 +41,8 @@ public class Utilisateur implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // On donne le rôle de l'utilisateur à Spring Security (ex: ROLE_USER)
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role));
+        // Si 'role' est ton attribut qui contient "ADMIN" ou "USER"
+        return List.of(new SimpleGrantedAuthority(this.role));
     }
 
     @Override
