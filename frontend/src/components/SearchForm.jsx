@@ -8,7 +8,6 @@ const SearchForm = ({ onRouteCalculated }) => {
     const [endPoint, setEndPoint] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    // --- NOUVEAUX ÉTATS V3 ---
     const [isClimActive, setIsClimActive] = useState(false);
     const [chargeUtileKg, setChargeUtileKg] = useState(0);
 
@@ -28,14 +27,21 @@ const SearchForm = ({ onRouteCalculated }) => {
         setIsLoading(true);
 
         try {
-            // L'URL intègre maintenant isClimActive et chargeUtileKg
             const url = `http://localhost:8080/api/routing/trajet?startLon=${startPoint.lon}&startLat=${startPoint.lat}&endLon=${endPoint.lon}&endLat=${endPoint.lat}&vehiculeId=${selectedVehicule}&isClimActive=${isClimActive}&chargeUtileKg=${chargeUtileKg}`;
 
             const response = await fetch(url);
             if (!response.ok) throw new Error("Erreur lors du calcul de l'itinéraire");
 
             const data = await response.json();
-            onRouteCalculated(data);
+
+            // On envoie les données de la route ET les paramètres choisis (avec le endPoint en plus !)
+            onRouteCalculated(data, {
+                startPoint,
+                endPoint,
+                selectedVehicule,
+                isClimActive,
+                chargeUtileKg
+            });
 
         } catch (error) {
             console.error("Erreur de routage:", error);
@@ -78,7 +84,6 @@ const SearchForm = ({ onRouteCalculated }) => {
                 onLocationSelect={(coords) => setEndPoint(coords)}
             />
 
-            {/* --- NOUVEAUX CHAMPS V3 --- */}
             <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col gap-3">
                 <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Options de conduite</span>
 
@@ -107,7 +112,6 @@ const SearchForm = ({ onRouteCalculated }) => {
                     />
                 </div>
             </div>
-            {/* ------------------------- */}
 
             <button
                 onClick={handleCalculer}

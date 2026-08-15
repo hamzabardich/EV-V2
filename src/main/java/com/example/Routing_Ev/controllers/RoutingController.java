@@ -46,14 +46,22 @@ public class RoutingController {
     public Map<String, Object> getTrajetEtBornes(
             @RequestParam double startLon, @RequestParam double startLat,
             @RequestParam double endLon, @RequestParam double endLat,
+            @RequestParam(required = false) Double wpLon, // NOUVEAU: Longitude de la borne étape
+            @RequestParam(required = false) Double wpLat, // NOUVEAU: Latitude de la borne étape
             @RequestParam(defaultValue = "5000") double rayonMetres,
             @RequestParam(required = false) Long vehiculeId,
             @RequestParam(defaultValue = "false") boolean isClimActive,
             @RequestParam(defaultValue = "0") double chargeUtileKg
     ) throws JsonProcessingException {
 
-        // 1. Récupération de l'itinéraire OSRM
-        OsrmService.OsrmResult osrmResult = osrmService.getRoute(startLon, startLat, endLon, endLat);
+        // 1. Récupération de l'itinéraire OSRM (Choix entre 2 ou 3 points)
+        OsrmService.OsrmResult osrmResult;
+
+        if (wpLon != null && wpLat != null) {
+            osrmResult = osrmService.getRouteAvecEtape(startLon, startLat, wpLon, wpLat, endLon, endLat);
+        } else {
+            osrmResult = osrmService.getRoute(startLon, startLat, endLon, endLat);
+        }
 
         if (osrmResult == null) {
             Map<String, Object> erreur = new HashMap<>();
@@ -83,18 +91,13 @@ public class RoutingController {
         BorneRecharge borneIdeale = null;
 
         if (besoinRecharge) {
-            // Extraction des coordonnées du trajet OSRM
             @SuppressWarnings("unchecked")
             List<List<Double>> coordinates = (List<List<Double>>) traceCartographique.get("coordinates");
-
-            // Trouver les coordonnées GPS exactes de la panne (à 30% de batterie)
             double[] pointPanne = smartRoutingService.trouverPointRechargeOptimal(coordinates, distanceMaxAvantRecharge);
-
-            // Chercher la borne la plus proche de ce point précis
             borneIdeale = borneRepository.findBorneIdealePourRecharge(pointPanne[0], pointPanne[1]);
         }
 
-        // 4. Recherche globale classique (pour l'historique et affichage général)
+        // 4. Recherche globale classique
         List<BorneRecharge> bornesProches = borneRepository.findBornesAutourDuTrajet(osrmResult.geometry(), rayonMetres);
 
         // 5. Sauvegarde du trajet
@@ -119,14 +122,10 @@ public class RoutingController {
         response.put("1_geometrie_trajet", traceCartographique);
         response.put("2_distance_km", distanceKm);
         response.put("3_duree_minutes", dureeMinutes);
-
-        // Nouvelles clés V3
         response.put("autonomie_reelle_km", autonomieReelle);
         response.put("seuil_alerte_recharge_km", distanceMaxAvantRecharge);
         response.put("necessite_recharge", besoinRecharge);
-        response.put("borne_recommandee", borneIdeale); // L'IA renvoie la meilleure borne !
-
-        // Clés V2
+        response.put("borne_recommandee", borneIdeale);
         response.put("4_nombre_bornes_trouvees", bornesProches.size());
         response.put("5_bornes_a_proximite", bornesProches);
 

@@ -19,31 +19,50 @@ public class OsrmService {
     // 💡 Astuce d'architecte : Un Record pour stocker proprement les 3 infos renvoyées par OSRM
     public record OsrmResult(String geometry, double distanceMetres, double dureeSecondes) {}
 
-    // J'ai renommé la méthode pour que ce soit plus logique (elle ne renvoie plus juste la géométrie)
+    // Méthode classique à 2 points (Départ -> Arrivée)
     public OsrmResult getRoute(double startLon, double startLat, double endLon, double endLat) {
-        String url = String.format(
-                "http://router.project-osrm.org/route/v1/driving/%s,%s;%s,%s?overview=full&geometries=geojson",
+        String url = String.format(java.util.Locale.US,
+                "http://router.project-osrm.org/route/v1/driving/%f,%f;%f,%f?overview=full&geometries=geojson",
                 startLon, startLat, endLon, endLat
         );
 
         try {
-            // 1. On récupère la réponse JSON
             String response = restTemplate.getForObject(url, String.class);
             JsonNode rootNode = objectMapper.readTree(response);
-
-            // 2. On cible la première route proposée
             JsonNode routeNode = rootNode.path("routes").get(0);
 
-            // 3. On extrait les 3 informations cruciales
             String geometry = routeNode.path("geometry").toString();
-            double distance = routeNode.path("distance").asDouble(); // OSRM renvoie des mètres
-            double duration = routeNode.path("duration").asDouble(); // OSRM renvoie des secondes
+            double distance = routeNode.path("distance").asDouble();
+            double duration = routeNode.path("duration").asDouble();
 
-            // 4. On renvoie notre objet groupé
             return new OsrmResult(geometry, distance, duration);
 
         } catch (Exception e) {
             System.err.println("❌ Erreur lors du traitement OSRM : " + e.getMessage());
+            return null;
+        }
+    }
+
+    // NOUVELLE MÉTHODE V3 : Trajet à 3 points (Départ -> Borne -> Arrivée)
+    public OsrmResult getRouteAvecEtape(double startLon, double startLat, double wpLon, double wpLat, double endLon, double endLat) {
+        String url = String.format(java.util.Locale.US,
+                "http://router.project-osrm.org/route/v1/driving/%f,%f;%f,%f;%f,%f?overview=full&geometries=geojson",
+                startLon, startLat, wpLon, wpLat, endLon, endLat
+        );
+
+        try {
+            String response = restTemplate.getForObject(url, String.class);
+            JsonNode rootNode = objectMapper.readTree(response);
+            JsonNode routeNode = rootNode.path("routes").get(0);
+
+            String geometry = routeNode.path("geometry").toString();
+            double distance = routeNode.path("distance").asDouble();
+            double duration = routeNode.path("duration").asDouble();
+
+            return new OsrmResult(geometry, distance, duration);
+
+        } catch (Exception e) {
+            System.err.println("❌ Erreur lors du traitement OSRM Multi-étapes : " + e.getMessage());
             return null;
         }
     }
