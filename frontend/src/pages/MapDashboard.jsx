@@ -71,6 +71,12 @@ const MapDashboard = () => {
                     {token ? (
                         <>
                             <Link
+                                to="/profil"
+                                className="bg-slate-200 text-slate-700 hover:bg-slate-300 font-bold py-2 px-4 rounded-lg transition"
+                            >
+                                👤 Profil
+                            </Link>
+                            <Link
                                 to="/garage"
                                 className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-bold py-2 px-4 rounded-lg transition"
                             >

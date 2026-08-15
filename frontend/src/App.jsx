@@ -5,6 +5,7 @@ import Register from './pages/Register';
 import Historique from './pages/Historique';
 import AdminDashboard from './pages/AdminDashboard';
 import MesVehicules from './pages/MesVehicules'; // 👈 NOUVEL IMPORT
+import MonCompte from './pages/MonCompte';
 
 function App() {
     return (
@@ -15,7 +16,9 @@ function App() {
                 <Route path="/register" element={<Register />} />
                 <Route path="/historique" element={<Historique />} />
                 <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/profil" element={<MonCompte />} />
                 <Route path="/garage" element={<MesVehicules />} /> {/* 👈 NOUVELLE ROUTE */}
+
             </Routes>
         </Router>
     );
