@@ -9,7 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/vehicules")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class VehiculeController {
 
     @Autowired
@@ -17,7 +17,8 @@ public class VehiculeController {
 
     @GetMapping
     public List<Vehicule> getAllVehicules() {
-        return vehiculeRepo.findAll();
+        // 👇 MODIFICATION ICI : On ne récupère que les véhicules publics (sans utilisateur)
+        return vehiculeRepo.findByUtilisateurIsNull();
     }
 
     @GetMapping("/{id}")

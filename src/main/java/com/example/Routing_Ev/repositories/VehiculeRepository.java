@@ -15,4 +15,7 @@ public interface VehiculeRepository extends JpaRepository<Vehicule, Long> {
 
     // Trouver un véhicule précis appartenant à un utilisateur précis (pour éviter qu'un utilisateur supprime la voiture d'un autre)
     Optional<Vehicule> findByIdAndUtilisateur_Email(Long id, String email);
+
+    // 👇 NOUVELLE MÉTHODE : Trouver les véhicules qui n'ont pas de propriétaire
+    List<Vehicule> findByUtilisateurIsNull();
 }

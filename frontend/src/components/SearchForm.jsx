@@ -12,10 +12,35 @@ const SearchForm = ({ onRouteCalculated }) => {
     const [chargeUtileKg, setChargeUtileKg] = useState(0);
 
     useEffect(() => {
-        fetch('http://localhost:8080/api/vehicules')
-            .then((response) => response.json())
-            .then((data) => setVehicules(data))
-            .catch((error) => console.error("Erreur:", error));
+        const fetchAllVehicules = async () => {
+            try {
+                // 1. On charge d'abord les modèles de base (Route publique)
+                const resGlobal = await fetch('http://localhost:8080/api/vehicules');
+                const globalData = await resGlobal.ok ? await resGlobal.json() : [];
+
+                // 2. On regarde si l'utilisateur est connecté
+                const token = localStorage.getItem('token');
+                let personalData = [];
+
+                if (token) {
+                    // S'il a un token, on va chercher son garage personnel
+                    const resPersonal = await fetch('http://localhost:8080/api/mes-vehicules', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (resPersonal.ok) {
+                        personalData = await resPersonal.json();
+                    }
+                }
+
+                // 3. On fusionne les deux listes et on met à jour l'état
+                setVehicules([...globalData, ...personalData]);
+
+            } catch (error) {
+                console.error("Erreur de chargement des véhicules:", error);
+            }
+        };
+
+        fetchAllVehicules();
     }, []);
 
     const handleCalculer = async () => {
@@ -78,7 +103,7 @@ const SearchForm = ({ onRouteCalculated }) => {
                     <option value="">Sélectionnez un modèle...</option>
                     {vehicules.map((vehicule) => (
                         <option key={vehicule.id} value={vehicule.id}>
-                            {vehicule.modele}
+                            {vehicule.marque} {vehicule.modele} {vehicule.utilisateur ? "(Mon Garage)" : ""}
                         </option>
                     ))}
                 </select>

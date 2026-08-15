@@ -3,7 +3,8 @@ import MapDashboard from './pages/MapDashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Historique from './pages/Historique';
-import AdminDashboard from './pages/AdminDashboard'; // 👈 IMPORT DE LA PAGE ADMIN
+import AdminDashboard from './pages/AdminDashboard';
+import MesVehicules from './pages/MesVehicules'; // 👈 NOUVEL IMPORT
 
 function App() {
     return (
@@ -13,7 +14,8 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/historique" element={<Historique />} />
-                <Route path="/admin" element={<AdminDashboard />} /> {/* 👈 ROUTE MISE À JOUR */}
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/garage" element={<MesVehicules />} /> {/* 👈 NOUVELLE ROUTE */}
             </Routes>
         </Router>
     );

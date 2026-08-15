@@ -1,5 +1,6 @@
 package com.example.Routing_Ev.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -24,6 +25,7 @@ public class Vehicule {
 
     @ManyToOne
     @JoinColumn(name = "utilisateur_id")
+    @JsonIgnore
     private Utilisateur utilisateur;
 
     // N'oublie pas de générer les Getters et Setters pour 'utilisateur' :

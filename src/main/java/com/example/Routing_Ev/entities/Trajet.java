@@ -1,5 +1,6 @@
 package com.example.Routing_Ev.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -45,6 +46,7 @@ public class Trajet {
 
     @ManyToOne
     @JoinColumn(name = "utilisateur_id")
+    @JsonIgnore
     private Utilisateur utilisateur;
 
     @PrePersist
