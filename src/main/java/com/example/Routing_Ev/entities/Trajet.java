@@ -42,6 +42,11 @@ public class Trajet {
     )
     private List<BorneRecharge> bornesSuggerees;
 
+
+    @ManyToOne
+    @JoinColumn(name = "utilisateur_id")
+    private Utilisateur utilisateur;
+
     @PrePersist
     public void prePersist() {
         this.dateCreation = LocalDateTime.now();

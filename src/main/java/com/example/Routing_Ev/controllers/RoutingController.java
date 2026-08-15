@@ -3,15 +3,18 @@ package com.example.Routing_Ev.controllers;
 import com.example.Routing_Ev.entities.BorneRecharge;
 import com.example.Routing_Ev.entities.Trajet;
 import com.example.Routing_Ev.entities.Vehicule;
+import com.example.Routing_Ev.entities.Utilisateur;
 import com.example.Routing_Ev.repositories.BorneRechargeRepository;
 import com.example.Routing_Ev.repositories.TrajetRepository;
 import com.example.Routing_Ev.repositories.VehiculeRepository;
+import com.example.Routing_Ev.repositories.UtilisateurRepository;
 import com.example.Routing_Ev.services.OsrmService;
 import com.example.Routing_Ev.services.SmartRoutingService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +29,7 @@ public class RoutingController {
     private final TrajetRepository trajetRepository;
     private final VehiculeRepository vehiculeRepository;
     private final SmartRoutingService smartRoutingService;
+    private final UtilisateurRepository utilisateurRepository; // <-- NOUVEAU
     private final ObjectMapper objectMapper;
 
     public RoutingController(
@@ -33,12 +37,14 @@ public class RoutingController {
             BorneRechargeRepository borneRepository,
             TrajetRepository trajetRepository,
             VehiculeRepository vehiculeRepository,
-            SmartRoutingService smartRoutingService) {
+            SmartRoutingService smartRoutingService,
+            UtilisateurRepository utilisateurRepository) { // <-- NOUVEAU
         this.osrmService = osrmService;
         this.borneRepository = borneRepository;
         this.trajetRepository = trajetRepository;
         this.vehiculeRepository = vehiculeRepository;
         this.smartRoutingService = smartRoutingService;
+        this.utilisateurRepository = utilisateurRepository; // <-- NOUVEAU
         this.objectMapper = new ObjectMapper();
     }
 
@@ -46,15 +52,16 @@ public class RoutingController {
     public Map<String, Object> getTrajetEtBornes(
             @RequestParam double startLon, @RequestParam double startLat,
             @RequestParam double endLon, @RequestParam double endLat,
-            @RequestParam(required = false) Double wpLon, // NOUVEAU: Longitude de la borne étape
-            @RequestParam(required = false) Double wpLat, // NOUVEAU: Latitude de la borne étape
+            @RequestParam(required = false) Double wpLon,
+            @RequestParam(required = false) Double wpLat,
             @RequestParam(defaultValue = "5000") double rayonMetres,
             @RequestParam(required = false) Long vehiculeId,
             @RequestParam(defaultValue = "false") boolean isClimActive,
-            @RequestParam(defaultValue = "0") double chargeUtileKg
+            @RequestParam(defaultValue = "0") double chargeUtileKg,
+            Principal principal // <-- NOUVEAU : Spring injecte automatiquement l'utilisateur connecté s'il y a un Token valide
     ) throws JsonProcessingException {
 
-        // 1. Récupération de l'itinéraire OSRM (Choix entre 2 ou 3 points)
+        // 1. Récupération de l'itinéraire OSRM
         OsrmService.OsrmResult osrmResult;
 
         if (wpLon != null && wpLat != null) {
@@ -72,7 +79,7 @@ public class RoutingController {
         double distanceKm = Math.round((osrmResult.distanceMetres() / 1000) * 100.0) / 100.0;
         long dureeMinutes = Math.round(osrmResult.dureeSecondes() / 60.0);
 
-        // 2. INTELLIGENCE V3 : Calcul de l'autonomie et du besoin de recharge
+        // 2. Calcul de l'autonomie et du besoin de recharge
         double autonomieReelle = 0.0;
         double distanceMaxAvantRecharge = 0.0;
         boolean besoinRecharge = false;
@@ -86,7 +93,7 @@ public class RoutingController {
             }
         }
 
-        // 3. RECHERCHE SPATIALE DE LA BORNE IDÉALE
+        // 3. Borne Idéale
         Map<String, Object> traceCartographique = objectMapper.readValue(osrmResult.geometry(), Map.class);
         BorneRecharge borneIdeale = null;
 
@@ -97,7 +104,7 @@ public class RoutingController {
             borneIdeale = borneRepository.findBorneIdealePourRecharge(pointPanne[0], pointPanne[1]);
         }
 
-        // 4. Recherche globale classique
+        // 4. Recherche globale
         List<BorneRecharge> bornesProches = borneRepository.findBornesAutourDuTrajet(osrmResult.geometry(), rayonMetres);
 
         // 5. Sauvegarde du trajet
@@ -114,9 +121,18 @@ public class RoutingController {
             vehiculeRepository.findById(vehiculeId).ifPresent(trajet::setVehicule);
         }
 
+        // --- NOUVEAUTÉ SÉCURITÉ : LIAISON DU TRAJET À L'UTILISATEUR ---
+        // Si le principal n'est pas null, ça veut dire que l'utilisateur a envoyé un Token valide !
+        if (principal != null) {
+            String emailConnecte = principal.getName();
+            utilisateurRepository.findByEmail(emailConnecte)
+                    .ifPresent(trajet::setUtilisateur);
+        }
+        // --------------------------------------------------------------
+
         Trajet trajetSauvegarde = trajetRepository.save(trajet);
 
-        // 6. Construction de la réponse JSON finale
+        // 6. Construction de la réponse JSON
         Map<String, Object> response = new HashMap<>();
         response.put("trajet_id", trajetSauvegarde.getId());
         response.put("1_geometrie_trajet", traceCartographique);
