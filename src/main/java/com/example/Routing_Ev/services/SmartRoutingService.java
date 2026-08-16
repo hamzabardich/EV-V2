@@ -16,9 +16,6 @@ public class SmartRoutingService {
     // Pénalité du poids : -2% d'autonomie par tranche de 100 kg
     private static final double PENALITE_POIDS_POUR_100KG = 0.02;
 
-    /**
-     * 1. Calcule l'autonomie réelle du véhicule en fonction des conditions.
-     */
     public double calculerAutonomieReelle(Vehicule vehicule, boolean isClimActive, double chargeUtileKg) {
         if (vehicule == null) {
             return 0.0;
@@ -44,25 +41,17 @@ public class SmartRoutingService {
         return Math.round(autonomieReelle * 100.0) / 100.0;
     }
 
-    /**
-     * 2. Calcule la distance maximale qu'on s'autorise à rouler avant de s'arrêter
-     */
     public double calculerDistanceMaxAvantRecharge(double autonomieReelle) {
         double distanceMax = autonomieReelle * (1.0 - SEUIL_SECURITE_BATTERIE);
         return Math.round(distanceMax * 100.0) / 100.0;
     }
 
-    /**
-     * 3. Détermine si le trajet nécessite au moins une recharge
-     */
     public boolean necessiteRecharge(double distanceTrajetKm, double distanceMaxAvantRecharge) {
         return distanceTrajetKm > distanceMaxAvantRecharge;
     }
 
-    /**
-     * 4. Calcule la distance en kilomètres entre deux coordonnées GPS (Formule de Haversine)
-     */
-    private double calculerDistanceHaversine(double lat1, double lon1, double lat2, double lon2) {
+    // 👇 PASSÉE EN "PUBLIC" POUR POUVOIR L'UTILISER DANS LE CONTRÔLEUR
+    public double calculerDistanceHaversine(double lat1, double lon1, double lat2, double lon2) {
         final int R = 6371; // Rayon de la Terre en km
         double latDistance = Math.toRadians(lat2 - lat1);
         double lonDistance = Math.toRadians(lon2 - lon1);
@@ -73,9 +62,6 @@ public class SmartRoutingService {
         return R * c;
     }
 
-    /**
-     * 5. Parcourt la ligne OSRM pour trouver le point exact où la batterie arrive à son seuil
-     */
     public double[] trouverPointRechargeOptimal(List<List<Double>> coordinates, double distanceMaxKm) {
         double distanceParcourue = 0.0;
 

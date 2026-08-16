@@ -31,6 +31,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll() // Routes publiques (Créer un compte, se connecter)
                         .requestMatchers("/api/routing/**", "/api/vehicules/**").permitAll() // On laisse le calcul public pour l'instant
+                        .requestMatchers("/api/bornes/**").permitAll()
                         .requestMatchers("/api/admin/**").hasAuthority("ADMIN") // 👑 Seulement pour les Admins
                         .anyRequest().authenticated() // Tout le reste est privé (Historique, etc.)
                 )

@@ -30,16 +30,12 @@ const MapDashboard = () => {
             // NOUVELLE URL : On garde la destination d'origine et on ajoute la borne en waypoint (wpLon, wpLat)
             const url = `http://localhost:8080/api/routing/trajet?startLon=${searchParams.startPoint.lon}&startLat=${searchParams.startPoint.lat}&endLon=${searchParams.endPoint.lon}&endLat=${searchParams.endPoint.lat}&wpLon=${borne.longitude}&wpLat=${borne.latitude}&vehiculeId=${searchParams.selectedVehicule}&isClimActive=${searchParams.isClimActive}&chargeUtileKg=${searchParams.chargeUtileKg}`;
 
-            // On récupère le token s'il existe
             const token = localStorage.getItem('token');
-
-            // On prépare les en-têtes (Headers) de la requête
             const headers = {};
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            // On envoie la requête avec le token !
             const response = await fetch(url, {
                 method: 'GET',
                 headers: headers
@@ -66,10 +62,26 @@ const MapDashboard = () => {
                     <p className="text-slate-500">Trouvez le meilleur trajet avec les bornes de recharge adaptées.</p>
                 </div>
 
-                {/* Zone d'authentification */}
-                <div className="flex items-center gap-3">
+                {/* Zone d'authentification et Navigation Globale */}
+                <div className="flex items-center gap-3 flex-wrap justify-end">
+
+                    {/* LIENS PUBLICS (Visibles par tous) */}
+                    <Link to="/catalogue-vehicules" className="bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold py-2 px-4 rounded-lg transition border border-slate-200">
+                        🚗 Modèles
+                    </Link>
+                    <Link to="/catalogue-bornes" className="bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold py-2 px-4 rounded-lg transition border border-slate-200">
+                        🔌 Bornes Maroc
+                    </Link>
+
+                    {/* LIENS PRIVÉS (Visibles seulement si connecté) */}
                     {token ? (
                         <>
+                            <Link
+                                to="/admin"
+                                className="bg-amber-100 text-amber-700 hover:bg-amber-200 font-bold py-2 px-4 rounded-lg transition"
+                            >
+                                👑 Admin
+                            </Link>
                             <Link
                                 to="/profil"
                                 className="bg-slate-200 text-slate-700 hover:bg-slate-300 font-bold py-2 px-4 rounded-lg transition"

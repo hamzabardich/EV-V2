@@ -3,7 +3,6 @@ package com.example.Routing_Ev.controllers;
 import com.example.Routing_Ev.entities.BorneRecharge;
 import com.example.Routing_Ev.entities.Trajet;
 import com.example.Routing_Ev.entities.Vehicule;
-import com.example.Routing_Ev.entities.Utilisateur;
 import com.example.Routing_Ev.repositories.BorneRechargeRepository;
 import com.example.Routing_Ev.repositories.TrajetRepository;
 import com.example.Routing_Ev.repositories.VehiculeRepository;
@@ -29,7 +28,7 @@ public class RoutingController {
     private final TrajetRepository trajetRepository;
     private final VehiculeRepository vehiculeRepository;
     private final SmartRoutingService smartRoutingService;
-    private final UtilisateurRepository utilisateurRepository; // <-- NOUVEAU
+    private final UtilisateurRepository utilisateurRepository;
     private final ObjectMapper objectMapper;
 
     public RoutingController(
@@ -38,13 +37,13 @@ public class RoutingController {
             TrajetRepository trajetRepository,
             VehiculeRepository vehiculeRepository,
             SmartRoutingService smartRoutingService,
-            UtilisateurRepository utilisateurRepository) { // <-- NOUVEAU
+            UtilisateurRepository utilisateurRepository) {
         this.osrmService = osrmService;
         this.borneRepository = borneRepository;
         this.trajetRepository = trajetRepository;
         this.vehiculeRepository = vehiculeRepository;
         this.smartRoutingService = smartRoutingService;
-        this.utilisateurRepository = utilisateurRepository; // <-- NOUVEAU
+        this.utilisateurRepository = utilisateurRepository;
         this.objectMapper = new ObjectMapper();
     }
 
@@ -58,10 +57,10 @@ public class RoutingController {
             @RequestParam(required = false) Long vehiculeId,
             @RequestParam(defaultValue = "false") boolean isClimActive,
             @RequestParam(defaultValue = "0") double chargeUtileKg,
-            Principal principal // <-- NOUVEAU : Spring injecte automatiquement l'utilisateur connecté s'il y a un Token valide
+            Principal principal
     ) throws JsonProcessingException {
 
-        // 1. Récupération de l'itinéraire OSRM
+        // 1. Récupération de l'itinéraire direct OSRM
         OsrmService.OsrmResult osrmResult;
 
         if (wpLon != null && wpLat != null) {
@@ -78,6 +77,7 @@ public class RoutingController {
 
         double distanceKm = Math.round((osrmResult.distanceMetres() / 1000) * 100.0) / 100.0;
         long dureeMinutes = Math.round(osrmResult.dureeSecondes() / 60.0);
+        long dureeDirecteEnSecondes = Math.round(osrmResult.dureeSecondes()); // Utilisé pour le test de détour
 
         // 2. Calcul de l'autonomie et du besoin de recharge
         double autonomieReelle = 0.0;
@@ -93,19 +93,62 @@ public class RoutingController {
             }
         }
 
-        // 3. Borne Idéale
+        // 3. Recherche globale des bornes le long du trajet
+        List<BorneRecharge> bornesProches = borneRepository.findBornesAutourDuTrajet(osrmResult.geometry(), rayonMetres);
+
+        // 4. LOGIQUE DE LA "ROUE DE SECOURS" ET "TEST DU DÉTOUR"
+        BorneRecharge borneChoisieFinale = null;
         Map<String, Object> traceCartographique = objectMapper.readValue(osrmResult.geometry(), Map.class);
-        BorneRecharge borneIdeale = null;
 
         if (besoinRecharge) {
+            // Trouver le point exact où on tombe en panne
             @SuppressWarnings("unchecked")
             List<List<Double>> coordinates = (List<List<Double>>) traceCartographique.get("coordinates");
             double[] pointPanne = smartRoutingService.trouverPointRechargeOptimal(coordinates, distanceMaxAvantRecharge);
-            borneIdeale = borneRepository.findBorneIdealePourRecharge(pointPanne[0], pointPanne[1]);
-        }
 
-        // 4. Recherche globale
-        List<BorneRecharge> bornesProches = borneRepository.findBornesAutourDuTrajet(osrmResult.geometry(), rayonMetres);
+            // On trie les bornes : de la plus proche du lieu de la panne à la plus éloignée
+            bornesProches.sort((b1, b2) -> {
+                double d1 = smartRoutingService.calculerDistanceHaversine(pointPanne[1], pointPanne[0], b1.getLatitude(), b1.getLongitude());
+                double d2 = smartRoutingService.calculerDistanceHaversine(pointPanne[1], pointPanne[0], b2.getLatitude(), b2.getLongitude());
+                return Double.compare(d1, d2);
+            });
+
+            long SEUIL_DETOUR_SECONDES = 15 * 60; // Max 15 minutes de détour autorisé
+            BorneRecharge borneIdeale = null;
+            BorneRecharge borneSecours = null;
+            int appelsOsrmMaximum = 5; // On ne teste que les 5 meilleures bornes pour ne pas ralentir le backend
+            int appelsEffectues = 0;
+
+            for (BorneRecharge borne : bornesProches) {
+                // Filtre vital : La borne est-elle accessible avant la panne ?
+                double distanceDepuisDepart = smartRoutingService.calculerDistanceHaversine(
+                        startLat, startLon, borne.getLatitude(), borne.getLongitude());
+
+                if (distanceDepuisDepart > distanceMaxAvantRecharge) {
+                    continue; // Inatteignable, on ignore !
+                }
+
+                if (appelsEffectues >= appelsOsrmMaximum) break;
+
+                // Test du Détour : Est-ce du bon côté de l'autoroute ?
+                OsrmService.OsrmResult trajetTest = osrmService.getRouteAvecEtape(
+                        startLon, startLat, borne.getLongitude(), borne.getLatitude(), endLon, endLat);
+                appelsEffectues++;
+
+                if (trajetTest != null) {
+                    long tempsDetour = Math.round(trajetTest.dureeSecondes() - dureeDirecteEnSecondes);
+
+                    if (tempsDetour <= SEUIL_DETOUR_SECONDES) {
+                        borneIdeale = borne;
+                        break; // C'est parfait, on arrête de chercher !
+                    } else if (borneSecours == null) {
+                        borneSecours = borne; // La borne de secours (gros détour, mais évite la panne)
+                    }
+                }
+            }
+
+            borneChoisieFinale = (borneIdeale != null) ? borneIdeale : borneSecours;
+        }
 
         // 5. Sauvegarde du trajet
         Trajet trajet = new Trajet();
@@ -121,14 +164,11 @@ public class RoutingController {
             vehiculeRepository.findById(vehiculeId).ifPresent(trajet::setVehicule);
         }
 
-        // --- NOUVEAUTÉ SÉCURITÉ : LIAISON DU TRAJET À L'UTILISATEUR ---
-        // Si le principal n'est pas null, ça veut dire que l'utilisateur a envoyé un Token valide !
         if (principal != null) {
             String emailConnecte = principal.getName();
             utilisateurRepository.findByEmail(emailConnecte)
                     .ifPresent(trajet::setUtilisateur);
         }
-        // --------------------------------------------------------------
 
         Trajet trajetSauvegarde = trajetRepository.save(trajet);
 
@@ -141,7 +181,10 @@ public class RoutingController {
         response.put("autonomie_reelle_km", autonomieReelle);
         response.put("seuil_alerte_recharge_km", distanceMaxAvantRecharge);
         response.put("necessite_recharge", besoinRecharge);
-        response.put("borne_recommandee", borneIdeale);
+
+        // 👇 On renvoie la Borne Finale !
+        response.put("borne_recommandee", borneChoisieFinale);
+
         response.put("4_nombre_bornes_trouvees", bornesProches.size());
         response.put("5_bornes_a_proximite", bornesProches);
 
