@@ -1,6 +1,7 @@
 package com.example.Routing_Ev.repositories;
 
 import com.example.Routing_Ev.entities.Trajet;
+import com.example.Routing_Ev.entities.Utilisateur;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,4 +11,5 @@ import java.util.List;
 public interface TrajetRepository extends JpaRepository<Trajet, Long> {
 
     List<Trajet> findByUtilisateur_EmailOrderByIdDesc(String email);
+    List<Trajet> findByUtilisateur(Utilisateur utilisateur);
 }

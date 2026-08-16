@@ -33,6 +33,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
+        // 🌟 LA SOLUTION ANTI-CORS : On laisse passer immédiatement les requêtes OPTIONS (Preflight de React)
+        if (request.getMethod().equals("OPTIONS")) {
+            response.setStatus(HttpServletResponse.SC_OK);
+            return;
+        }
+
         // --- DEBUG ---
         System.out.println("--------------------------------------------------");
         System.out.println("Requête interceptée sur l'URL : " + request.getRequestURI());
@@ -46,7 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // 2. Si y'a pas de token (ou s'il commence pas par "Bearer ")
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            System.out.println(">>> ERREUR : Pas de header Authorization ou ne commence pas par 'Bearer ' !");
+            System.out.println(">>> INFO : Pas de header Authorization ou ne commence pas par 'Bearer ' !");
             filterChain.doFilter(request, response);
             return;
         }
