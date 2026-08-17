@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom'; // 👈 Ajout de useLocation
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import MapView from '../components/MapView';
 import SearchForm from '../components/SearchForm';
 import RouteSummary from '../components/RouteSummary';
@@ -9,19 +9,16 @@ const MapDashboard = () => {
     const [searchParams, setSearchParams] = useState(null);
 
     const navigate = useNavigate();
-    const location = useLocation(); // 👈 Permet de lire les données envoyées par d'autres pages
+    const location = useLocation();
     const token = localStorage.getItem('token');
 
-    // 🌟 NOUVEAU : Le détecteur de rechargement depuis l'historique
     useEffect(() => {
         if (location.state && location.state.rechargeTrajet) {
             const trajet = location.state.rechargeTrajet;
 
             const rechargerAncienTrajet = async () => {
                 try {
-                    // On reconstruit l'URL avec les coordonnées de l'ancien trajet
                     const url = `http://localhost:8080/api/routing/trajet?startLon=${trajet.startLongitude}&startLat=${trajet.startLatitude}&endLon=${trajet.endLongitude}&endLat=${trajet.endLatitude}`;
-
                     const headers = {};
                     if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -31,7 +28,6 @@ const MapDashboard = () => {
                     const data = await response.json();
                     setRouteData(data);
 
-                    // On met à jour les paramètres pour que le composant de résumé fonctionne
                     setSearchParams({
                         startPoint: { lat: trajet.startLatitude, lon: trajet.startLongitude },
                         endPoint: { lat: trajet.endLatitude, lon: trajet.endLongitude },
@@ -40,16 +36,12 @@ const MapDashboard = () => {
                         chargeUtileKg: 0
                     });
 
-                    // 🧹 Très important : on nettoie l'historique de navigation.
-                    // Ça évite que le trajet se recalcule à l'infini si l'utilisateur rafraîchit la page (F5).
                     window.history.replaceState({}, document.title);
-
                 } catch (error) {
                     console.error("Erreur de rechargement:", error);
                     alert("Impossible de recharger ce trajet sur la carte.");
                 }
             };
-
             rechargerAncienTrajet();
         }
     }, [location.state, token]);
@@ -73,52 +65,68 @@ const MapDashboard = () => {
             const response = await fetch(url, { method: 'GET', headers });
             if (!response.ok) throw new Error("Erreur lors du recalcul vers la borne");
 
-            const data = await response.json();
-            setRouteData(data);
+            setRouteData(await response.json());
         } catch (error) {
             console.error("Erreur vers la borne:", error);
         }
     };
 
     return (
-        <div className="min-h-screen bg-slate-100 p-4 md:p-8">
-            <header className="mb-6 flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <div>
-                    <h1 className="text-3xl font-extrabold text-slate-800">Planificateur EV ⚡</h1>
-                    <p className="text-slate-500">Trouvez le meilleur trajet avec les bornes de recharge adaptées.</p>
-                </div>
+        <div className="min-h-screen bg-slate-50 flex flex-col">
 
-                <div className="flex items-center gap-3 flex-wrap justify-end">
-                    <Link to="/catalogue-vehicules" className="bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold py-2 px-4 rounded-lg transition border border-slate-200">
-                        🚗 Modèles
-                    </Link>
-                    <Link to="/catalogue-bornes" className="bg-slate-100 text-slate-600 hover:bg-slate-200 font-bold py-2 px-4 rounded-lg transition border border-slate-200">
-                        🔌 Bornes Maroc
+            {/* 🌟 NAVBAR CLEAN SAAS - FINYOURWAY */}
+            <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+                <div className="max-w-[1600px] mx-auto px-4 md:px-8 h-20 flex justify-between items-center">
+
+                    {/* LOGO */}
+                    <Link to="/" className="flex items-center gap-3 group">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-emerald-500 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        </div>
+                        <span className="text-2xl font-black tracking-tight text-slate-800 hidden sm:block">
+                            FindYour<span className="text-blue-600">Way</span>
+                        </span>
                     </Link>
 
-                    {token ? (
-                        <>
-                            <Link to="/admin" className="bg-amber-100 text-amber-700 hover:bg-amber-200 font-bold py-2 px-4 rounded-lg transition">👑 Admin</Link>
-                            <Link to="/profil" className="bg-slate-200 text-slate-700 hover:bg-slate-300 font-bold py-2 px-4 rounded-lg transition">👤 Profil</Link>
-                            <Link to="/garage" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 font-bold py-2 px-4 rounded-lg transition">Mon Garage</Link>
-                            <Link to="/historique" className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 font-bold py-2 px-4 rounded-lg transition">Mon Historique</Link>
-                            <button onClick={handleLogout} className="bg-red-100 text-red-600 hover:bg-red-200 font-bold py-2 px-4 rounded-lg transition">Se déconnecter</button>
-                        </>
-                    ) : (
-                        <Link to="/login" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition shadow-md">Se connecter</Link>
-                    )}
+                    {/* MENU DE NAVIGATION */}
+                    <nav className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                        <Link to="/catalogue-vehicules" className="text-slate-600 hover:text-blue-600 font-semibold px-3 py-2 transition-colors whitespace-nowrap">Modèles 🚗</Link>
+                        <Link to="/catalogue-bornes" className="text-slate-600 hover:text-emerald-600 font-semibold px-3 py-2 transition-colors whitespace-nowrap">Bornes 🔌</Link>
+
+                        <div className="h-6 w-px bg-slate-300 mx-2 hidden md:block"></div>
+
+                        {token ? (
+                            <div className="flex gap-2 items-center">
+                                <Link to="/historique" className="text-slate-600 hover:text-slate-900 font-semibold px-3 py-2 transition-colors whitespace-nowrap">Historique</Link>
+                                <Link to="/garage" className="text-slate-600 hover:text-slate-900 font-semibold px-3 py-2 transition-colors whitespace-nowrap">Garage</Link>
+                                <Link to="/profil" className="text-slate-600 hover:text-slate-900 font-semibold px-3 py-2 transition-colors whitespace-nowrap">Profil</Link>
+                                <Link to="/admin" className="bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold py-2 px-4 rounded-lg transition-colors whitespace-nowrap">Admin 👑</Link>
+                                <button onClick={handleLogout} className="text-red-500 hover:text-red-700 font-semibold px-3 py-2 transition-colors whitespace-nowrap">Déconnexion</button>
+                            </div>
+                        ) : (
+                            <Link to="/login" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-sm whitespace-nowrap">
+                                Se connecter
+                            </Link>
+                        )}
+                    </nav>
                 </div>
             </header>
 
-            <div className="flex flex-col lg:flex-row gap-6 w-full max-w-7xl mx-auto">
-                <div className="w-full lg:w-1/3">
-                    <SearchForm onRouteCalculated={handleRouteCalculated} />
+            {/* CONTENU PRINCIPAL */}
+            <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-6 lg:p-8 flex flex-col lg:flex-row gap-6">
+                {/* Colonne Recherche & Résumé */}
+                <div className="w-full lg:w-[400px] xl:w-[450px] flex flex-col gap-6 shrink-0">
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <SearchForm onRouteCalculated={handleRouteCalculated} />
+                    </div>
                     <RouteSummary data={routeData} onNavigateToBorne={handleNavigateToBorne} />
                 </div>
-                <div className="w-full lg:w-2/3">
+
+                {/* Colonne Carte */}
+                <div className="w-full flex-1 min-h-[600px] bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
                     <MapView routeData={routeData} />
                 </div>
-            </div>
+            </main>
         </div>
     );
 };
